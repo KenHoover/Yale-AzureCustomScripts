@@ -5,7 +5,8 @@ Param(
 )
 
 # Add VM owner to local Administrators group
-net localgroup Administrators /add yale\$VMOwnerUsername
+$member = "yale\$vmownernetid"
+Add-LocalGroupMember -Group Administrators -Member $member
 
 # Send email to indicate that we're done.
 send-mailmessage -To "ken.hoover@yale.edu" -From "azurebuilds@yale.edu" -smtpserver mail.yale.edu -Subject "Build succeeded for $env:computername" -Body "Build of $env:computername for $VMOwnerUsername complete"
