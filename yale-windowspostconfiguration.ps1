@@ -5,7 +5,7 @@ Param(
 )
 
 # Add VM owner to local Administrators group
-$member = "yale\$vmownernetid"
+$member = "yale\$VMOwnerUsername"
 Add-LocalGroupMember -Group Administrators -Member $member
 
 # Send email to indicate that we're done.
