@@ -1,0 +1,303 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+
+    "parameters": {
+
+        "virtualMachineName": { "type": "string" },
+        "virtualMachineSize": { "type": "string" },
+        "vmOwnerNetid": { "type": "string"},
+
+        "virtualMachineSKU" : { 
+            "type": "string",
+            "allowedValues": ["2016-Datacenter-HUB", "2012-R2-Datacenter-HUB", "2012-Datacenter-HUB", "2008-R2-SP1-HUB"],
+            "defaultValue": "2016-Datacenter-HUB"
+        },
+
+        "localAdminUsername": { "type": "string" },
+        "localAdminPassword": { "type": "securestring" },
+        
+        "domainToJoin" : { "type": "string"},
+        "oupath": { "type": "string"},
+        "domainJoinUsername" : { "type": "string" } ,
+        "domainJoinPassword" : { "type": "securestring" },
+        "domainJoinOptions" : { "type": "string"},
+
+        "virtualNetworkName": { "type": "string" },
+        "virtualNetworkResourceGroupName" : { "type": "string" },
+        "subnetName": { "type": "string" },
+
+        "OwnerDepartmentTag": { "type": "string", "defaultValue": "Default"},
+        "OwnerDepartmentContactTag": { "type": "string", "defaultValue": "Default" },
+        "SupportDepartmentTag": { "type": "string", "defaultValue": "Default" },
+        "SupportDepartmentContactTag": { "type": "string", "defaultValue": "Default" },
+        "ChargingAccountTag": { "type": "string", "defaultValue": "Default" },
+        "EnvironmentTag": { "type": "string", "defaultValue": "Default" },
+        "ApplicationTag": { "type": "string", "defaultValue": "Default" },
+        "CreatedByTag": { "type": "string", "defaultValue": "Default" },
+        "NameTag": { "type": "string", "defaultValue": "Default" }
+    },
+
+    "variables": {
+        
+        "storageAccountName": "[toLower(concat(parameters('virtualMachineName'), 'sa'))]",
+        "networkInterfaceName": "[concat(parameters('virtualMachineName'), 'NIC')]",
+        "networkSecurityGroupName": "[concat(parameters('virtualMachineName'), 'NSG')]",
+
+        "diagnosticsStorageAccountName": "[toLower(concat(parameters('virtualMachineName'), 'dsa'))]",
+        "diagnosticsStorageAccountId": "[concat('Microsoft.Storage/storageAccounts/',parameters('virtualMachineName'),'diags')]",
+        "diagnosticsStorageAccountType" : "Standard_LRS"
+    },
+    
+    "resources": [
+        {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]",
+                "[concat('Microsoft.Storage/storageAccounts/', variables('diagnosticsStorageAccountName'))]"
+            ],
+
+            "tags": {
+                "OwnerDepartmentTag": "[parameters('OwnerDepartmentTag')]",
+                "OwnerDepartmentContactTag": "[parameters('OwnerDepartmentContactTag')]",
+                "SupportDepartmentTag": "[parameters('SupportDepartmentTag')]",
+                "SupportDepartmentContactTag": "[parameters('SupportDepartmentContactTag')]",
+                "ChargingAccountTag": "[parameters('ChargingAccountTag')]",
+                "EnvironmentTag": "[parameters('EnvironmentTag')]",
+                "ApplicationTag": "[parameters('ApplicationTag')]",
+                "CreatedByTag": "[parameters('CreatedByTag')]",
+                "Name": "[parameters('NameTag')]"
+            },
+
+            "properties": {
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('localAdminUsername')]",
+                    "adminPassword": "[parameters('localAdminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true",
+                        "timeZone": "Eastern Standard Time",
+                        "winRM": {
+                        "listeners": [
+                            {
+                            "protocol": "Http"
+                            }
+                        ]
+                        }  
+                    }                  
+                },
+                "licenseType": "Windows_Server",
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer-HUB",
+                        "sku": "[parameters('virtualMachineSKU')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "[concat(parameters('virtualMachineName'),'osdisk')]",
+                        "createOption": "FromImage",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[reference(resourceId(resourcegroup().Name, 'Microsoft.Storage/storageAccounts', variables('diagnosticsStorageAccountName')), '2015-06-15').primaryEndpoints['blob']]"
+                    }
+                }
+            },
+            "resources": [
+            {
+                "apiVersion": "2016-03-30",
+                "type": "Microsoft.Compute/virtualMachines/extensions",
+                "name": "[concat(parameters('virtualMachineName'),'/joindomain')]",
+                "location": "[resourceGroup().location]",
+                "dependson": [
+                    "[parameters('virtualMachineName')]"
+                ],
+                "properties": {
+                    "publisher": "Microsoft.Compute",
+                    "type": "JsonADDomainExtension",
+                    "typeHandlerVersion": "1.3",
+                    "autoUpgradeMinorVersion": true,
+                    "settings": {
+                        "Name": "[parameters('domainToJoin')]",
+                        "OUPath": "[parameters('ouPath')]",
+                        "User": "[concat(parameters('domainToJoin'), '\\', parameters('domainJoinUsername'))]",
+                        "Restart": "true",
+                        "Options": "[parameters('domainJoinOptions')]"
+                    },
+                    "protectedSettings": {
+                        "Password": "[parameters('domainJoinPassword')]"
+                    }
+                }
+            }             
+            ]
+        },
+        {
+            "name": "[variables('diagnosticsStorageAccountName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2015-06-15",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "accountType": "[variables('diagnosticsStorageAccountType')]"
+            },
+            "tags": {
+                "OwnerDepartmentTag": "[parameters('OwnerDepartmentTag')]",
+                "OwnerDepartmentContactTag": "[parameters('OwnerDepartmentContactTag')]",
+                "SupportDepartmentTag": "[parameters('SupportDepartmentTag')]",
+                "SupportDepartmentContactTag": "[parameters('SupportDepartmentContactTag')]",
+                "ChargingAccountTag": "[parameters('ChargingAccountTag')]",
+                "EnvironmentTag": "[parameters('EnvironmentTag')]",
+                "ApplicationTag": "[parameters('ApplicationTag')]",
+                "CreatedByTag": "[parameters('CreatedByTag')]",
+                "Name": "[parameters('NameTag')]"
+            }
+        },
+        {
+            "name": "[variables('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[concat(resourceId(parameters('virtualNetworkResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/', parameters('subnetName'))]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId(resourcegroup().Name, 'Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+                }
+            },
+            "tags": {
+                "OwnerDepartmentTag": "[parameters('OwnerDepartmentTag')]",
+                "OwnerDepartmentContactTag": "[parameters('OwnerDepartmentContactTag')]",
+                "SupportDepartmentTag": "[parameters('SupportDepartmentTag')]",
+                "SupportDepartmentContactTag": "[parameters('SupportDepartmentContactTag')]",
+                "ChargingAccountTag": "[parameters('ChargingAccountTag')]",
+                "EnvironmentTag": "[parameters('EnvironmentTag')]",
+                "ApplicationTag": "[parameters('ApplicationTag')]",
+                "CreatedByTag": "[parameters('CreatedByTag')]",
+                "Name": "[parameters('NameTag')]"
+            }            
+        },
+        {
+            "name": "[variables('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2016-09-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "default-allow-rdp",
+                        "properties": {
+                            "priority": 1000,
+                            "sourceAddressPrefix": "*",
+                            "protocol": "Tcp",
+                            "destinationPortRange": "3389",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    },
+                    {
+                        "name": "default-allow-winrm-5985",
+                        "properties": {
+                            "priority": 1010,
+                            "sourceAddressPrefix": "*",
+                            "protocol": "Tcp",
+                            "destinationPortRange": "5985",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*"
+                        }
+                    }                    
+                ]
+            },
+            "tags": {
+                "OwnerDepartmentTag": "[parameters('OwnerDepartmentTag')]",
+                "OwnerDepartmentContactTag": "[parameters('OwnerDepartmentContactTag')]",
+                "SupportDepartmentTag": "[parameters('SupportDepartmentTag')]",
+                "SupportDepartmentContactTag": "[parameters('SupportDepartmentContactTag')]",
+                "ChargingAccountTag": "[parameters('ChargingAccountTag')]",
+                "EnvironmentTag": "[parameters('EnvironmentTag')]",
+                "ApplicationTag": "[parameters('ApplicationTag')]",
+                "CreatedByTag": "[parameters('CreatedByTag')]",
+                "Name": "[parameters('NameTag')]"
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'),'/config-app')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'),'/extensions/joindomain')]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.8",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "https://raw.githubusercontent.com/KenHoover/Yale-AzureCustomScripts/master/yale-windowspostconfiguration.ps1"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('powershell.exe -File yale-windowspostconfiguration.ps1 -vmOwnerNetid ', parameters('vmOwnerNetid'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'),'/bginfo')]",
+            "location": "[resourceGroup().location]",
+            "dependson": [
+                "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'),'/extensions/joindomain')]"
+            ],                
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "BGInfo",
+                "typeHandlerVersion": "2.1",
+                "settings": { },
+                "protectedSettings": null
+            }
+        }  
+    ],
+    "outputs": {
+        "Owner": {
+            "type": "string",
+            "value": "[concat('yale\\',parameters('vmOwnerNetid'))]"
+        }
+    }
+}

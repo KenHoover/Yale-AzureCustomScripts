@@ -1,0 +1,63 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+
+        "virtualMachineName": { "value": "RestDeplTest1" },
+        "virtualMachineSize": { "value": "Standard_D1_v2" },
+        "virtualMachineSKU": { "value": "2016-Datacenter-HUB"},
+        "vmOwnerNetid": { "value": "kjh27"},
+
+
+        "localAdminUsername": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/e2dae07e-af09-4adf-b7e9-46fb406cdd55/resourceGroups/spinupKeyVaultRG/providers/Microsoft.KeyVault/vaults/Spinup-KeyVault"
+                },
+                "secretName": "VMAdminUsername"
+            }
+        },
+        "localAdminPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/e2dae07e-af09-4adf-b7e9-46fb406cdd55/resourceGroups/spinupKeyVaultRG/providers/Microsoft.KeyVault/vaults/Spinup-KeyVault"
+                },
+                "secretName": "VMAdminPassword"
+            }
+        },
+
+        "virtualNetworkName": { "value": "VNET-ITS-Sandbox" },
+        "subnetName": { "value": "Sandbox-private-sub1" },
+        "virtualNetworkResourceGroupName" :{ "value": "VNET-ITS-Sandbox-RG" },
+
+        "OwnerDepartmentTag": { "value": "OwnerDepartmentTag" },
+        "OwnerDepartmentContactTag": { "value": "OwnerDepartmentContactTag" },
+        "SupportDepartmentTag": { "value": "SupportDepartmentTag" },
+        "SupportDepartmentContactTag": { "value": "SupportDepartmentContactTag" },
+        "ChargingAccountTag": { "value": "ChargingAccountTag" },
+        "EnvironmentTag": { "value": "ChargingAccountTag" },
+        "ApplicationTag": { "value": "ApplicationTag" },
+        "CreatedByTag": { "value": "CreatedByTag" },
+        "NameTag": { "value": "NameTag" },
+
+        "domainToJoin": { "value": "yu.yale.edu" },
+        "ouPath": { "value": "OU=Ken,OU=computers,OU=Design Services,OU=Information Technology Services,DC=yu,DC=yale,DC=edu"},
+        "domainJoinOptions": { "value": "3" },
+        "domainJoinUsername": {         
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/e2dae07e-af09-4adf-b7e9-46fb406cdd55/resourceGroups/spinupKeyVaultRG/providers/Microsoft.KeyVault/vaults/Spinup-KeyVault"
+                },
+                "secretName": "DomainJoinUsername"
+            }
+        },
+        "domainJoinPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/e2dae07e-af09-4adf-b7e9-46fb406cdd55/resourceGroups/spinupKeyVaultRG/providers/Microsoft.KeyVault/vaults/Spinup-KeyVault"
+                },
+                "secretName": "DomainJoinPassword"
+            }
+        }
+    }                
+}
